@@ -37,9 +37,10 @@ def weather(bot, trigger):
     try:
         api = bot.memory['owm']['api']
         observation = lookup_observation(api, location)
-        location = observation.get_location()
+        location = "{},{}".format(observation.get_location().get_name(), observation.get_location().get_country())
         weather = observation.get_weather()
-        message = format_weather_message(location.get_name(), weather)
+        uv = get_uv_index(api, observation.get_location())
+        message = format_weather_message(location, weather, uv)
     except NotFoundError:
         global LOC_NOT_FOUND_MSG
         message = LOC_NOT_FOUND_MSG
@@ -101,13 +102,19 @@ def shutdown(bot):
 
 # --- End Sopel Code Section ---
 
-def format_weather_message(location, weather):
+def format_weather_message(location, weather, uv):
     cover = get_cover(weather)
     temp = get_temperature(weather)
     humidity = get_humidity(weather)
     wind = get_wind(weather)
-   
-    return "{}: {} {} {} {}".format(location, cover, temp, humidity, wind) 
+    uv_index = round(uv.get_value(), 1)
+    uv_risk = uv.get_exposure_risk()
+
+    return "{}: {} {} {} {} UV Index {} ({})".format(location, cover, temp, humidity, wind, uv_index, uv_risk) 
+
+def get_uv_index(api, location):
+    uv = api.uvindex_around_coords(location.get_lat(), location.get_lon())
+    return uv
 
 def get_cover(w):
     return w.get_detailed_status()
