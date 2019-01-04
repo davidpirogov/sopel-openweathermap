@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import argparse
+from datetime import datetime
 from pyowm import OWM
 from pyowm.exceptions.api_response_error import NotFoundError, UnauthorizedError
 from pyowm.exceptions.api_call_error import APICallError
@@ -24,7 +25,10 @@ except ImportError:
         'Can also use a latitude,longitude decimal notation search, along with a specific OWM ID search')
 @sopel.module.rate(server=1)
 def weather(bot, trigger):
-    """ .weather location - show the weather at a given location """
+    """ 
+    .weather location - show the weather at a given location and returns the first result. Use a country suffix to get more accurate information, such as London,GB.
+    Can also use a latitude,longitude decimal notation search, along with a specific OWM ID search
+    """
     location_lookup = trigger.group(2)
     if not location_lookup:
         location_lookup = bot.db.get_nick_value(trigger.nick, 'place_id')
@@ -67,7 +71,6 @@ def setlocation(bot, trigger):
                 location_list.append({'name':location_name,'location':location_group[0]})
 
     if len(location_list) > 1:
-        print(location_list)
         location_refine_message = "Please refine your location by adding a country code. Valid options are: {}".format(str(list(map(lambda x: "{},{}".format(x.get_name(), x.get_country()), location_list))).strip('[]'))
         bot.reply(location_refine_message)
     elif len(location_list) == 0:
@@ -171,8 +174,9 @@ def format_weather_message(location, weather, uv):
     wind = get_wind(weather)
     uv_index = round(uv.get_value(), 1)
     uv_risk = uv.get_exposure_risk()
+    uv_timestamp = datetime.utcfromtimestamp(uv.get_reference_time()).strftime('%Y-%m-%d %H:%M:%S')
 
-    return "{}: {} {} {} {} UV Index {} ({})".format(location, cover, temp, humidity, wind, uv_index, uv_risk) 
+    return "{}: {} {} {} {} UV Index {} ({} at {})".format(location, cover, temp, humidity, wind, uv_index, uv_risk, uv_timestamp) 
 
 def get_uv_index(api, location):
     uv = api.uvindex_around_coords(location.get_lat(), location.get_lon())
@@ -198,8 +202,6 @@ def get_wind(w):
     # Format is:
     # {'deg': 59, 'speed': 2.660}
     # Speed is in metres/sec by default
-
-    print(wind)
 
     speed_kts = (wind["speed"] * 1.944)
     speed_m_s = round(wind["speed"], 1)
