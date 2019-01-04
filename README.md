@@ -21,6 +21,13 @@ sopel -w
 exclude=weather
 ```
 
+## Alternative Configuration
+For those who don't like running interactive ```sopel -w``` you need to add to the default.cfg file the following with your OWM API Key or APPID
+```ini
+[owm]
+api_key=...
+````
+
 # Usage
 Commands for retrieving the weather from OpenWeatherMap are:
 ```
