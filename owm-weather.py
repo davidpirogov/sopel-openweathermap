@@ -67,15 +67,16 @@ def setlocation(bot, trigger):
                 location_list.append({'name':location_name,'location':location_group[0]})
 
     if len(location_list) > 1:
-        location_refine_message = "Please refine your location by adding a country code. Valid options are: {}".format(str(list(map(lambda x: x['name'], location_list))).strip('[]'))
+        print(location_list)
+        location_refine_message = "Please refine your location by adding a country code. Valid options are: {}".format(str(list(map(lambda x: "{},{}".format(x.get_name(), x.get_country()), location_list))).strip('[]'))
         bot.reply(location_refine_message)
     elif len(location_list) == 0:
         bot.reply(LOC_NOT_FOUND_MSG)
     else:
         location = location_list.pop()
-        name = location['location'].get_name()
-        country = location['location'].get_country()
-        place_id = location['location'].get_ID()
+        name = location.get_name()
+        country = location.get_country()
+        place_id = location.get_ID()
 
         bot.db.set_nick_value(trigger.nick, "place_id", place_id)
         bot.reply("I now have you at ID #{}: {},{}".format(place_id, name, country))
