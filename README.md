@@ -2,10 +2,10 @@
 An OpenWeatherMap module for looking up the weather using the Sopel IRC bot
 
 # Installation
-Tested on Ubuntu 16.04 LTS. Requires python 3.5, [pyowm](https://github.com/csparpa/pyowm), and [Sopel](https://github.com/sopel-irc/sopel)
+Tested on Ubuntu 16.04 LTS. Requires python 3.5, argparse, [pyowm](https://github.com/csparpa/pyowm), and [Sopel](https://github.com/sopel-irc/sopel)
 
 ```bash
-pip3 install sopel pyowm
+pip3 install sopel pyowm argparse
 ```
 
 # Configuration
