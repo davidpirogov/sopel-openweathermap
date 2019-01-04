@@ -98,7 +98,7 @@ def setup(bot):
         bot.memory['owm']['api'] = owm_api
 
 def shutdown(bot):
-    del bot.memory['owm_api']
+    del bot.memory['owm']
 
 # --- End Sopel Code Section ---
 
@@ -247,7 +247,7 @@ def is_place_id(location):
     try:
         int(location) 
         return True
-    except ValueError:
+    except (TypeError,ValueError):
         return False
 
 def is_place_coords(location):
