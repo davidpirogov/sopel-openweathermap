@@ -9,10 +9,16 @@ pip3 install sopel pyowm
 ```
 
 # Configuration
-1. You need to retrieve an API key from [OpenWeatherMap](https://openweathermap.org/api)
-2. You need to run the sopel configuration option to set up the module in the bot:
+1. Retrieve an API key from [OpenWeatherMap](https://openweathermap.org/api)
+2. Run the sopel configuration option to set up the module in the bot:
 ```bash
 sopel -w
+```
+3. Disable the existing, non-functioning Sopel weather module by editing the default.cfg file and adding/appending to the core exclude list
+```ini
+[core]
+...
+exclude=weather
 ```
 
 # Usage
