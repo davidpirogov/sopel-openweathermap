@@ -176,7 +176,7 @@ def format_weather_message(location, weather, uv):
     uv_risk = uv.get_exposure_risk()
     uv_timestamp = datetime.utcfromtimestamp(uv.get_reference_time()).strftime('%Y-%m-%d %H:%M:%S')
 
-    return "{}: {} {} {} {} UV Index {} ({} at {})".format(location, cover, temp, humidity, wind, uv_index, uv_risk, uv_timestamp) 
+    return "{}: {} {} {} {} UV Index {} ({} at local solar noon)".format(location, cover, temp, humidity, wind, uv_index, uv_risk) 
 
 def get_uv_index(api, location):
     uv = api.uvindex_around_coords(location.get_lat(), location.get_lon())
