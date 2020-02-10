@@ -71,12 +71,15 @@ def setlocation(bot, trigger):
                 location_list.append({'name':location_name,'location':location_group[0]})
 
     if len(location_list) > 1:
-        location_refine_message = "Please refine your location by adding a country code. Valid options are: {}".format(str(list(map(lambda x: "{},{}".format(x.get_name(), x.get_country()), location_list))).strip('[]'))
+        location_refine_message = "Please refine your location by adding a country code (case sensitive). Valid options are: {}".format(str(list(map(lambda x: "{},{}".format(x.get_name(), x.get_country()), location_list))).strip('[]'))
         bot.reply(location_refine_message)
     elif len(location_list) == 0:
         bot.reply(LOC_NOT_FOUND_MSG)
     else:
         location = location_list.pop()
+        if isinstance(location, dict):
+            location = location['location']
+
         name = location.get_name()
         country = location.get_country()
         place_id = location.get_ID()
@@ -97,7 +100,7 @@ def setup(bot):
     bot.config.define_section('owm', OWMSection)
 
     # Load our OWM API into bot memory
-    if not bot.memory.contains('owm'):
+    if 'owm' not in bot.memory:
         api_key = bot.config.owm.api_key
         owm_api = get_api(api_key)
         bot.memory['owm'] = tools.SopelMemory()
