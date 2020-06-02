@@ -22,10 +22,10 @@ except ImportError:
 
 @sopel.module.commands('weather', 'wea')
 @sopel.module.example('.weather London', 'Gets the weather for London and returns the first result. Use a country suffix to get more accurate information, such as London,GB.',
-        'Can also use a latitude,longitude decimal notation search, along with a specific OWM ID search')
+                      'Can also use a latitude,longitude decimal notation search, along with a specific OWM ID search')
 @sopel.module.rate(server=1)
 def weather(bot, trigger):
-    """ 
+    """
     .weather location - show the weather at a given location and returns the first result. Use a country suffix to get more accurate information, such as London,GB.
     Can also use a latitude,longitude decimal notation search, along with a specific OWM ID search
     """
@@ -34,15 +34,16 @@ def weather(bot, trigger):
         location_lookup = bot.db.get_nick_value(trigger.nick, 'place_id')
         if not location_lookup:
             bot.reply("I don't know where you live. "
-                "Give me a location, like {pfx}{command} London, "
-                "or tell me where you live by saying {pfx}setlocation "
-                "London, for example.".format(command=trigger.group(1),
-                pfx=bot.config.core.help_prefix)) 
+                      "Give me a location, like {pfx}{command} London, "
+                      "or tell me where you live by saying {pfx}setlocation "
+                      "London, for example.".format(command=trigger.group(1),
+                                                    pfx=bot.config.core.help_prefix))
             return
-    
+
     api = bot.memory['owm']['api']
     message = get_weather(api, location_lookup)
     say_info(bot, message)
+
 
 @sopel.module.commands('setlocation', 'setcityid')
 @sopel.module.example('.setlocation Columbus, OH')
@@ -56,7 +57,7 @@ def setlocation(bot, trigger):
     location_lookup = trigger.group(2)
     location_group_list = lookup_location(api, location_lookup)
     location_list = []
-    if len(location_group_list) == 0: 
+    if len(location_group_list) == 0:
         # Attempt to load observations based on the nearest place to this lookup
         # and pull the locations from that set
         observations = lookup_observations_at_place(api, location_lookup)
@@ -66,12 +67,13 @@ def setlocation(bot, trigger):
         # Load locations based on the group list supplied with a direct lookup
         for lg in location_group_list:
             location_name = lg['name']
-            location_group = lg['locations'] 
-            if len(location_group) > 0: 
-                location_list.append({'name':location_name,'location':location_group[0]})
+            location_group = lg['locations']
+            if len(location_group) > 0:
+                location_list.append({'name': location_name, 'location': location_group[0]})
 
     if len(location_list) > 1:
-        location_refine_message = "Please refine your location by adding a country code (case sensitive). Valid options are: {}".format(str(list(map(lambda x: "{},{}".format(x.get_name(), x.get_country()), location_list))).strip('[]'))
+        location_refine_message = "Please refine your location by adding a country code (case sensitive). Valid options are: {}".format(
+            str(list(map(lambda x: "{},{}".format(x.get_name(), x.get_country()), location_list))).strip('[]'))
         bot.reply(location_refine_message)
     elif len(location_list) == 0:
         bot.reply(LOC_NOT_FOUND_MSG)
@@ -87,13 +89,16 @@ def setlocation(bot, trigger):
         bot.db.set_nick_value(trigger.nick, "place_id", place_id)
         bot.reply("I now have you at ID #{}: {},{}".format(place_id, name, country))
 
+
 class OWMSection(StaticSection):
     api_key = ValidatedAttribute('api_key', str, default="")
+
 
 def configure(config):
     config.define_section("owm", OWMSection)
     config.owm.configure_setting("api_key", "What is your OpenWeatherMap.org API Key or APPID?")
-    
+
+
 def setup(bot):
     """ Ensures that our set up configuration items are present """
     # Ensure configuration
@@ -106,10 +111,12 @@ def setup(bot):
         bot.memory['owm'] = tools.SopelMemory()
         bot.memory['owm']['api'] = owm_api
 
+
 def shutdown(bot):
     del bot.memory['owm']
 
 # --- End Sopel Code Section ---
+
 
 def get_weather(api, location_lookup):
     """ Gets the weather at a location or any error messages """
@@ -139,9 +146,9 @@ def get_weather(api, location_lookup):
                 observations = lookup_observations_at_place(api, "{},{}".format(location.get_name(), location.get_country()), 'accurate')
                 uvs.append(get_uv_index(api, location))
 
-            if len(observations) == 0: 
+            if len(observations) == 0:
                 raise NotFoundError(cause='No observations found')
-            
+
             observation = observations[0]
 
         # Format our observation into the appropriate message
@@ -161,7 +168,7 @@ def get_weather(api, location_lookup):
     except APICallError:
         global API_OFFLINE_MSG
         message = API_OFFLINE_MSG
-    
+
     return message
 
 
@@ -169,6 +176,7 @@ def get_weather_at_location(api, location):
     """ Looks up an observation at a specific location id """
     observation = lookup_observation(api, location.get_id())
     return observation
+
 
 def format_weather_message(location, weather, uv):
     cover = get_cover(weather)
@@ -179,14 +187,17 @@ def format_weather_message(location, weather, uv):
     uv_risk = uv.get_exposure_risk()
     uv_timestamp = datetime.utcfromtimestamp(uv.get_reference_time()).strftime('%Y-%m-%d %H:%M:%S')
 
-    return "{}: {} {} {} {} UV Index {} ({} at local solar noon)".format(location, cover, temp, humidity, wind, uv_index, uv_risk) 
+    return "{}: {} {} {} {} UV Index {} ({} at local solar noon)".format(location, cover, temp, humidity, wind, uv_index, uv_risk)
+
 
 def get_uv_index(api, location):
     uv = api.uvindex_around_coords(location.get_lat(), location.get_lon())
     return uv
 
+
 def get_cover(w):
     return w.get_detailed_status()
+
 
 def get_temperature(w):
     temp_c = w.get_temperature('celsius')
@@ -197,8 +208,10 @@ def get_temperature(w):
 
     return "{}\u00B0C ({}\u00B0F)".format(round(temp_c['temp'], 1), round(temp_f['temp'], 1))
 
+
 def get_humidity(w):
     return "Humidity: {}%".format(w.get_humidity())
+
 
 def get_wind(w):
     wind = w.get_wind()
@@ -238,7 +251,7 @@ def get_wind(w):
         description = 'Violent storm'
     else:
         description = 'Hurricane'
-    
+
     if degrees is not None:
         if (degrees <= 22.5) or (degrees > 337.5):
             degrees = u'\u2193'
@@ -261,6 +274,7 @@ def get_wind(w):
 
     return "{} {}m/s ({})".format(description, speed_m_s, degrees)
 
+
 def lookup_location(api, location_lookup):
     """ Looks up a location to see if it's valid """
     registry = api.city_id_registry()
@@ -270,7 +284,7 @@ def lookup_location(api, location_lookup):
     # supplied as a separate parameter in registry.locations_for
     loc = location_lookup.split(',')
     loc_lookup = loc[0].strip()
-    loc_country = "" 
+    loc_country = ""
     if len(loc) > 1:
         loc_country = loc[1].strip()
 
@@ -283,7 +297,7 @@ def lookup_location(api, location_lookup):
         locations = registry.locations_for(loc_lookup, country=loc_country, matching=lookup_accuracy)
 
     # location_list structure is: { "Melbourne,AU": [ multiple, locations ] }
-    location_group_list = [] 
+    location_group_list = []
     for l in locations:
         # Only append to the location list if the location lookup name is identical to the location name
         if l.get_name() == loc_lookup:
@@ -295,7 +309,8 @@ def lookup_location(api, location_lookup):
             location_list['locations'].append(l)
 
     location_group_list.sort(key=lambda x: x['name'])
-    return location_group_list   
+    return location_group_list
+
 
 def lookup_observation(api, location):
     """ Looks up the observation based on the location value provided """
@@ -309,14 +324,17 @@ def lookup_observation(api, location):
 
     return observation
 
+
 def lookup_observations_at_place(api, location_lookup, searchtype='like'):
     observations = api.weather_at_places(location_lookup, searchtype=searchtype, limit=OBSERVATION_LOOKUP_LIMIT)
     return observations
+
 
 def lookup_weather(api, location):
     observation = lookup_observation(api, location)
     weather = observation.get_weather()
     return weather
+
 
 def get_api(api_key):
     """ Retrieves the OWM API object based on the supplied key """
@@ -328,16 +346,18 @@ def get_api(api_key):
     owm = OWM(api_key)
     return owm
 
+
 def is_place_id(location):
     """ Checks whether or not the city lookup can be cast to an int, representing a OWM Place ID """
     try:
-        int(location) 
+        int(location)
         return True
-    except (TypeError,ValueError):
+    except (TypeError, ValueError):
         return False
 
+
 def is_place_coords(location):
-    """ 
+    """
     Checks whether or not coordinates exist and are able to be cast to a float.
     From OWM documentation:
         - The location's latitude, must be between -90.0 and 90.0
@@ -346,7 +366,7 @@ def is_place_coords(location):
     """
     try:
         coords = get_place_coords(location)
-        
+
         # Check for valid floats
         latitude = float(coords[0])
         longitude = float(coords[1])
@@ -364,6 +384,7 @@ def is_place_coords(location):
     except ValueError:
         return False
 
+
 def get_place_coords(location):
     """
     Parses a geo coord in the form of (latitude,longitude) and returns
@@ -372,6 +393,7 @@ def get_place_coords(location):
     """
     latitude, longitude = map(float, location.strip('()[]').split(','))
     return [latitude, longitude]
+
 
 def say_info(bot, info_text):
     """ Outputs a specific bit of infomational text for the channel """
@@ -384,11 +406,12 @@ def get_argparser():
     parser.add_argument("--location", help="Optional lookup value, either a city name, coords, or city id.")
     return parser
 
+
 if __name__ == "__main__":
     """ Test harness for when running outside of Sopel """
     parser = get_argparser()
     args = parser.parse_args()
-    
+
     api_key = args.api_key
     location_lookup = args.location
     if location_lookup is None:
@@ -399,11 +422,10 @@ if __name__ == "__main__":
     message = get_weather(api, location_lookup)
     print(message)
 
-
     print("Getting locations for location '{}'".format(location_lookup))
     location_group_list = lookup_location(api, location_lookup)
     location_list = []
-    if len(location_group_list) == 0: 
+    if len(location_group_list) == 0:
         # Attempt to load observations based on the nearest place to this lookup
         # and pull the locations from that set
         observations = lookup_observations_at_place(api, location_lookup)
@@ -413,9 +435,9 @@ if __name__ == "__main__":
         # Load locations based on the group list supplied with a direct lookup
         for lg in location_group_list:
             location_name = lg['name']
-            location_group = lg['locations'] 
-            if len(location_group) > 0: 
-                location_list.append({'name':location_name,'location':location_group[0]})
+            location_group = lg['locations']
+            if len(location_group) > 0:
+                location_list.append({'name': location_name, 'location': location_group[0]})
 
     if len(location_list) > 1:
         location_refine_message = "Please refine your location by adding a country code. Valid options are: {}".format(str(list(map(lambda x: x['name'], location_list))).strip('[]'))
@@ -429,5 +451,3 @@ if __name__ == "__main__":
         place_id = location['location'].get_ID()
 
         print("{},{} has place id {}".format(name, country, place_id))
-
-    
