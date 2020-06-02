@@ -129,7 +129,6 @@ def get_weather(api, location_lookup):
             observation = api.weather_at_coords(coords[0], coords[1])
         else:
             location_group_list = lookup_location(api, location_lookup)
-            locations = None
             if len(location_group_list) == 0:
                 approx_observation = True
 
