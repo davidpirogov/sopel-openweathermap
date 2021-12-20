@@ -484,9 +484,6 @@ def get_owm_location(api:OWM, location:dict) -> Tuple[str, Tuple[int, str, str]]
     """
 
     log.debug("Getting weather at location '%s'", construct_location_name(location))
-
-    log.debug(location)
-
     if location["type"] == "location":
         owm_locations: list[Location] = get_owm_locations_from_text(api, location)
         return check_owm_locations_list(location, owm_locations)
