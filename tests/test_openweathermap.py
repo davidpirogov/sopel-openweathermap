@@ -108,8 +108,10 @@ class TestInputLocationParsingMethods(unittest.TestCase):
 
     def test_construct_location_name(self):
 
-        self.assertEqual(utils.construct_location_name({'type': 'location', 'city': 'london'}), "london")
-        self.assertEqual(utils.construct_location_name({'type': 'location', 'city': 'london', 'country': 'CA'}), "london,CA")
+        self.assertEqual(utils.construct_location_name({'type': 'location', 'city': 'london'}), "London")
+        self.assertEqual(utils.construct_location_name({'type': 'location', 'city': 'london', 'country': 'CA'}), "London,CA")
+        self.assertEqual(utils.construct_location_name({'type': 'location', 'city': 'boiling springs', 'country': 'NC'}), "Boiling Springs,NC")
+        self.assertEqual(utils.construct_location_name({'type': 'location', 'city': "martha's vineyard", 'country': 'MA'}), "Martha's Vineyard,MA")
         self.assertEqual(utils.construct_location_name({'type': 'geocoords', 'latitude': 37.129, 'longitude': -84.0833}), "37.129,-84.0833")
         self.assertEqual(utils.construct_location_name({'type': 'place_id', 'place_id':123456}), "123456")
 

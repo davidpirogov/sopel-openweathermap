@@ -7,12 +7,14 @@ from pyowm.weatherapi25.observation import Observation
 from pyowm.weatherapi25.weather import Weather
 from pyowm.weatherapi25.location import Location
 from urllib.parse import quote_plus
-import regex as re
+
+
 from pyowm.commons.exceptions import APIRequestError, APIResponseError, ConfigurationError, NotFoundError, PyOWMError
 from pyowm.owm import OWM
 from sopel.config.types import StaticSection, ValidatedAttribute
 from sopel import tools  # type: ignore
-
+from string import capwords
+import regex as re
 log = tools.get_logger('openweathermap')
 
 LOC_NOT_FOUND_MSG = "Could not find your location. Try refining such as Melbourne,AU or " \
@@ -365,12 +367,13 @@ def construct_location_name(location:dict) -> str:
     """
 
     if location["type"] == "location":
+        city_name = capwords(location['city'])
         if "state" in location:
-            return f"{location['city']},{location['state']},{location['country']}"
+            return f"{city_name},{location['state']},{location['country']}"
         elif "country" in location:
-            return f"{location['city']},{location['country']}"
+            return f"{city_name},{location['country']}"
         else:
-            return location['city']
+            return city_name
 
     elif location["type"] == "geocoords":
         return f"{location['latitude']},{location['longitude']}"
@@ -378,7 +381,12 @@ def construct_location_name(location:dict) -> str:
     elif location["type"] == "place_id":
         # Even if we have a place_id, if the city key is set, we want to return the city
         # name instead
-        if "city" in location:
+        if "country" in location and "city" in location:
+            city_name = capwords(location['city'])
+            return f"{city_name},{location['country']}"
+
+        elif "city" in location:
+            city_name = capwords(location['city'])
             return location["city"]
 
         return str(location["place_id"])
