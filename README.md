@@ -2,10 +2,19 @@
 An OpenWeatherMap module for looking up the weather using the Sopel IRC bot
 
 # Installation
-Tested on Ubuntu 16.04 LTS. Requires python 3.5, argparse, [pyowm](https://github.com/csparpa/pyowm), and [Sopel](https://github.com/sopel-irc/sopel)
+Tested on Ubuntu 20.04 LTS. Requires python 3.7, [pyowm v3](https://github.com/csparpa/pyowm), and
+[Sopel 7.1](https://github.com/sopel-irc/sopel)
+
+Highly recommended to create a separate [pyenv environment](https://realpython.com/intro-to-pyenv/)
+for the Sopel bot and use pip to install the repository. The plugin will be available to Sopel
+as an [Entry point plugin](https://sopel.chat/docs/plugin.html#term-Entry-point-plugin)
 
 ```bash
-pip3 install sopel pyowm argparse
+pyenv virtualenv sopel_7_1
+pip install sopel
+cd .../sopel-openweathermap
+pip install .
+pip install -r requirements.txt
 ```
 
 # Configuration
@@ -14,7 +23,8 @@ pip3 install sopel pyowm argparse
 ```bash
 sopel -w
 ```
-3. Disable the existing, non-functioning Sopel weather module by editing the default.cfg file and adding/appending to the core exclude list
+3. Disable the existing, non-functioning Sopel weather module by editing the default.cfg file and
+adding/appending to the core exclude list
 ```ini
 [core]
 ...
@@ -22,31 +32,53 @@ exclude=weather
 ```
 
 ## Alternative Configuration
-For those who don't like running interactive ```sopel -w``` you need to add to the default.cfg file the following with your OWM API Key or APPID
+For those who don't like running interactive ```sopel -w``` you need to add to the default.cfg file
+ the following with your OWM API Key or APPID
 ```ini
 [owm]
 api_key=...
-````
+```
+
 
 # Usage
-Commands for retrieving the weather from OpenWeatherMap are:
+
+The OpenWeatherMap API retrieves information based on the supplied location. There are three
+ways to request a location:
+
+1. A unique, numeric id that is the most accurate way to express a location
+   * For example, [London,GB](https://openweathermap.org/city/2643743) has the id of ```2643743```, which can be extracted from the API or from the URL
+2. A geo coordinate in the form of decimal latitude,longitude
+   * Latitude and Longitude must be a decimal within the valid ranges
+   * Permitted separators are semi-colon ```;``` and comma ```,```
+   * For compatibility with the OpenWeatherMap website, any square brackets around the geo coordinates are stripped out
+3. Text that represents a city, country pair. There are several caveats
+   * Cities in the US need to use the city, 2-letter US state abbreviation
+   * Cities outside of the US need to use the city, 2-letter Country abbreviation
+   * To search for a city name with exact match to the search term, use the ```!``` character before the city name. For example, ```!London,GB```
+   * To search for a city that contains the search term, use the ```*``` character before the city name. For example, ```*London,GB```
+
+
+## IRC commands
+IRC commands for retrieving the weather from OpenWeatherMap are:
 ```
-.weather Melbourne
+.weather Melbourne,AU
+.weather New York
+.weather 1850147                // Unique ID of Tokyo, JP
+.weather 24.4667, 54.3667       // Closest city is Abu Dhabi, AE
 ```
 
-If you want the bot to remember your location, so in future you just need to enter ```.weather```:
+You can also use ```.weather``` without specifying anything if you have previously taught the bot your location via ```.setlocation```.
+
+For example:
 ```
-.setlocation Melbourne
+.setlocation New York
 ```
+**Note**: The ```.setlocation``` command works on the basis of your nickname, meaning that changes to nickname require an additional ```.setlocation``` to be called.
 
 # Testing
 
-Ensure you have your API Key or APPID ready. Assuming the API Key below is ```a1b2c3...x8z9```
+Tests are run via Python unittests and are stored in the ```tests/``` directory.
 ```bash
-$ python3 owm-weather.py a1b2c3...x8z9 --location="Melbourne,AU"
-Getting observation for location Melbourne,AU
-Melbourne: clear sky 42.4°C (108.3°F) Humidity: 11% Moderate breeze 8.2m/s (↘)
-Getting locations for location Melbourne,AU
-Melbourne,AU has place id 2158177
+python -m unittest
 ```
 
