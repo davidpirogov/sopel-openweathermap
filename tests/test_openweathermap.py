@@ -115,7 +115,6 @@ class TestInputLocationParsingMethods(unittest.TestCase):
         self.assertEqual(utils.construct_location_name({'type': 'geocoords', 'latitude': 37.129, 'longitude': -84.0833}), "37.129,-84.0833")
         self.assertEqual(utils.construct_location_name({'type': 'place_id', 'place_id':123456}), "123456")
 
-
     def test_field_sanitization(self):
 
         self.assertEqual(utils.sanitize_field("12345"), "")

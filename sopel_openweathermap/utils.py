@@ -222,8 +222,12 @@ def sanitize_field(field:str) -> str:
 
 def __clean_field(field:str) -> str:
     """ Performs a regex on a field """
+    # \p{Pf} : any kind of closing quote, such as "Martha's Vineyard, MA"
+    # \p{L}  : any kind of letter from any language
+    # \'     : single quote
+    # \-     : dash, such as "Winston-Salem"
     # Space is important in the regex
-    return "".join(re.findall("[\p{L} ]", field.strip(), re.UNICODE))
+    return "".join(re.findall("[\p{Pf}\p{L}\'\- ]", field.strip(), re.UNICODE))
 
 def is_geolocation(location: str, separator:str=";") -> bool:
     """
@@ -365,12 +369,9 @@ def construct_location_name(location:dict) -> str:
     Constructs a location name based on the supplied dictionary of elements, ensuring that
     they are in the correct format
     """
-
     if location["type"] == "location":
         city_name = capwords(location['city'])
-        if "state" in location:
-            return f"{city_name},{location['state']},{location['country']}"
-        elif "country" in location:
+        if "country" in location:
             return f"{city_name},{location['country']}"
         else:
             return city_name
@@ -379,8 +380,8 @@ def construct_location_name(location:dict) -> str:
         return f"{location['latitude']},{location['longitude']}"
 
     elif location["type"] == "place_id":
-        # Even if we have a place_id, if the city key is set, we want to return the city
-        # name instead
+        # Even if we have a place_id, if the city & country key is set, we want to return the city
+        # and country name instead
         if "country" in location and "city" in location:
             city_name = capwords(location['city'])
             return f"{city_name},{location['country']}"
@@ -442,6 +443,9 @@ def __get_weather_at_place_id(api: OWM, location: dict):
 
     obs_weather, obs_uv = __get_observation_at_place_id(api, location)
     location["city"] = obs_weather.location.name
+
+    if obs_weather.location.country is not None:
+        location['country'] = obs_weather.location.country
 
     return __get_weather_message_from_observation(api, location, obs_weather, obs_uv)
 
@@ -525,8 +529,13 @@ def __get_weather_at_location(api: OWM, location: dict) -> str:
     location_by_id = {
         "type": "place_id",
         # Tuple (5367815, 'London', 'CA')
-        "place_id": owm_location[0]
+        "place_id": owm_location[0],
     }
+
+    # Update location data with the names supplied by the OWM API
+    location['city'] = owm_location[1]
+    location['country'] = owm_location[2]
+
     obs_weather, obs_uv = __get_observation_at_place_id(api, location_by_id)
     return __get_weather_message_from_observation(api, location, obs_weather, obs_uv)
 
