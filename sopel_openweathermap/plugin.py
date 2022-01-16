@@ -101,7 +101,7 @@ def setlocation(bot, trigger):
 
     if error_message is not None:
         bot.reply(error_message)
-        return plugin.NOLIMIT
+        return 0
 
     (place_id, city, country) = owm_location
     bot.db.set_nick_value(trigger.nick, "place_id", place_id)
