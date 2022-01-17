@@ -2,6 +2,8 @@ from typing import List, Tuple
 from pyowm.commons.cityidregistry import CityIDRegistry
 from pyowm.commons.enums import SubscriptionTypeEnum
 from pyowm.uvindexapi30.uvindex import UVIndex
+from pyowm.airpollutionapi30.airstatus import AirStatus
+from pyowm.airpollutionapi30.airpollution_manager import AirPollutionManager
 from pyowm.weatherapi25 import weather
 from pyowm.weatherapi25.observation import Observation
 from pyowm.weatherapi25.weather import Weather
@@ -78,7 +80,8 @@ def get_api(api_key,
     return owm
 
 
-def format_weather_message(location_name:str, weather:Weather, uv:UVIndex) -> str:
+def format_weather_message(location_name:str, weather:Weather, uv:UVIndex,
+    air_status:AirStatus) -> str:
     """
     Formats a weather observation message for Sopel output
     """
@@ -90,8 +93,156 @@ def format_weather_message(location_name:str, weather:Weather, uv:UVIndex) -> st
     uv_index = round(uv.value, 1)
     uv_risk = uv.get_exposure_risk()
 
-    return "{}: {} {} {} {} UV Index {} ({} at local solar noon)".format(
-        location_name, cover, temp, humidity, wind, uv_index, uv_risk)
+    air_quality_message = ""
+    if air_status is not None:
+
+        qualitative_name = get_air_quality_qualitative_name(air_status.air_quality_data["aqi"])
+        worst_offenders = get_air_quality_worst_offender(air_status.air_quality_data)
+
+        # Leading space in the string is important for alignment in final message
+        if worst_offenders is None:
+            air_quality_message = " Air Quality: {}".format(qualitative_name)
+        else:
+            air_quality_message = " Air Quality: {}: {}".format(qualitative_name,
+                worst_offenders)
+
+    return "{}: {} {} {} {} UV Index {} ({} at local solar noon){}".format(
+        location_name, cover, temp, humidity, wind, uv_index, uv_risk, air_quality_message)
+
+
+def get_air_quality_worst_offender(air_quality_data:dict) -> str:
+    """
+    Gets the worst offender for the air quality metric
+    """
+
+    if air_quality_data is None or 'aqi' not in air_quality_data:
+        return None
+
+    air_quality_level = air_quality_data['aqi']
+    air_quality_matrix = __get_air_quality_index_matrix(air_quality_data)
+    worst_offenders = []
+
+    for air_quality_metric in air_quality_matrix:
+        if air_quality_metric['level'] == air_quality_level and \
+            air_quality_level > 1: # We don't want to include when air_quality_level is 1 (Good)
+            worst_offenders.append(air_quality_metric)
+
+    if len(worst_offenders) == 0:
+        return None
+
+    index = 0
+    worst_offenders_text = ""
+    for air_quality_offender in worst_offenders:
+
+        token_text = "{}: {} (≥{})".format(
+            air_quality_offender['metric'],
+            air_quality_offender['value'],
+            air_quality_offender['min'],
+        )
+
+        if index == 0:
+            worst_offenders_text = "{}".format(token_text)
+        else:
+            worst_offenders_text = "{}, {}".format(worst_offenders_text, token_text)
+
+        index += 1
+
+    return worst_offenders_text
+
+def __get_air_quality_index_matrix(air_quality_data:dict) -> List[dict]:
+    """
+    Returns an Air Quality Index matrix dictionary based on
+    https://openweathermap.org/api/air-pollution and which level each of the air_quality_data
+    readings fall into.
+    """
+
+    air_quality_names = {
+        'co': 'CO',
+        'no2': 'NO2',
+        'o3': 'Ozone',
+        'pm2_5': 'PM2.5',
+        'pm10': 'PM10'
+    }
+
+    air_quality_definitions = {
+        'co': [
+            {"min": 0, "max": 200 },
+            {"min": 200, "max": 300 },
+            {"min": 300, "max": 400 },
+            {"min": 400, "max": 500 },
+            {"min": 500, "max": 9999999 },
+        ],
+        'no2': [
+            {"min": 0, "max": 50 },
+            {"min": 50, "max": 100 },
+            {"min": 100, "max": 200 },
+            {"min": 200, "max": 400 },
+            {"min": 400, "max": 9999999 },
+        ],
+        'o3':[
+            {"min": 0, "max": 60 },
+            {"min": 60, "max": 120 },
+            {"min": 120, "max": 180 },
+            {"min": 180, "max": 240 },
+            {"min": 240, "max": 9999999 },
+        ],
+        'pm2_5':[
+            {"min": 0, "max": 15 },
+            {"min": 15, "max": 30 },
+            {"min": 30, "max": 55 },
+            {"min": 55, "max": 110 },
+            {"min": 110, "max": 9999999 },
+        ],
+        'pm10':[
+            {"min": 0, "max": 25 },
+            {"min": 25, "max": 50 },
+            {"min": 50, "max": 90 },
+            {"min": 90, "max": 180 },
+            {"min": 180, "max": 9999999 },
+        ],
+    }
+
+    air_quality_matrix = []
+    for aq_key in air_quality_data:
+        if aq_key in air_quality_definitions:
+            # Check which level and by how far the air quality metric exceeds the definition
+            air_quality_metrics = air_quality_definitions[aq_key]
+            aq_value = air_quality_data[aq_key]
+            index_offset = 1
+
+            for air_quality_metric in air_quality_metrics:
+                if aq_value >= air_quality_metric['min'] and aq_value < air_quality_metric['max']:
+                    air_quality_matrix.append({
+                        'metric': air_quality_names[aq_key],
+                        'level': index_offset,
+                        'value': aq_value,
+                        'min': air_quality_metric['min']
+                    })
+                    break
+
+                index_offset += 1
+
+    return air_quality_matrix
+
+
+def get_air_quality_qualitative_name(index:int) -> str:
+    """
+    Gets the qualitative name for the air quality based on the index ordinal supplied
+
+    More information: https://openweathermap.org/api/air-pollution
+    """
+
+    if index == 1:
+        return "Good"
+    elif index == 2:
+        return "Fair"
+    elif index == 3:
+        return "Moderate"
+    elif index == 4:
+        return "Poor"
+    else:
+        return "Very Poor"
+
 
 
 def get_cover(w:Weather) -> str:
@@ -412,15 +563,15 @@ def get_weather_message(api:OWM, location: dict) -> str:
 
         log.debug("Observation message is %s", message)
 
-    except (ConfigurationError, PyOWMError) as owm_config_error:
-        global OWM_CONFIG_ERROR_MSG
-        message = OWM_CONFIG_ERROR_MSG
-        log.error(owm_config_error)
-
     except (APIRequestError, APIResponseError) as api_error:
         global API_OFFLINE_MSG
         message = API_OFFLINE_MSG
         log.error(api_error)
+
+    except (ConfigurationError, PyOWMError) as owm_config_error:
+        global OWM_CONFIG_ERROR_MSG
+        message = OWM_CONFIG_ERROR_MSG
+        log.error(owm_config_error)
 
     return message
 
@@ -428,12 +579,13 @@ def get_weather_message(api:OWM, location: dict) -> str:
 def __get_weather_message_from_observation(api:OWM,
     location:dict,
     obs_weather:Observation,
-    obs_uv:UVIndex) -> str:
+    obs_uv:UVIndex,
+    air_status:AirStatus=None) -> str:
     """
     Gets a formatted weather message based on an observation
     """
     weather: Weather = obs_weather.weather
-    return format_weather_message(construct_location_name(location), weather, obs_uv)
+    return format_weather_message(construct_location_name(location), weather, obs_uv, air_status)
 
 
 def __get_weather_at_place_id(api: OWM, location: dict):
@@ -441,15 +593,15 @@ def __get_weather_at_place_id(api: OWM, location: dict):
     Gets the weather at a known place id
     """
 
-    obs_weather, obs_uv = __get_observation_at_place_id(api, location)
+    obs_weather, obs_uv, air_status = __get_observation_at_place_id(api, location)
     location["city"] = obs_weather.location.name
 
     if obs_weather.location.country is not None:
         location['country'] = obs_weather.location.country
 
-    return __get_weather_message_from_observation(api, location, obs_weather, obs_uv)
+    return __get_weather_message_from_observation(api, location, obs_weather, obs_uv, air_status)
 
-def __get_observation_at_place_id(api: OWM, location:dict) -> Tuple[Observation, UVIndex]:
+def __get_observation_at_place_id(api: OWM, location:dict) -> Tuple[Observation, UVIndex, AirStatus]:
     """
     Gets an observation at a specific place id
     """
@@ -463,7 +615,11 @@ def __get_observation_at_place_id(api: OWM, location:dict) -> Tuple[Observation,
     obs_uv: UVIndex = uvindex_manager.uvindex_around_coords(obs_weather.location.lat,
         obs_weather.location.lon)
 
-    return (obs_weather, obs_uv)
+    aq_manager: AirPollutionManager = api.airpollution_manager()
+    air_quality: AirStatus = aq_manager.air_quality_at_coords(obs_weather.location.lat,
+        obs_weather.location.lon)
+
+    return (obs_weather, obs_uv, air_quality)
 
 
 def __get_weather_at_geocoords(api: OWM, location: dict):
@@ -471,10 +627,10 @@ def __get_weather_at_geocoords(api: OWM, location: dict):
     Gets the formatted weather message at a set of geocoordinates
     """
 
-    obs_weather, obs_uv = __get_observation_at_geocoords(api, location)
-    return __get_weather_message_from_observation(api, location, obs_weather, obs_uv)
+    obs_weather, obs_uv, air_quality = __get_observation_at_geocoords(api, location)
+    return __get_weather_message_from_observation(api, location, obs_weather, obs_uv, air_quality)
 
-def __get_observation_at_geocoords(api:OWM, location:dict) -> Tuple[Observation, UVIndex]:
+def __get_observation_at_geocoords(api:OWM, location:dict) -> Tuple[Observation, UVIndex, AirStatus]:
     """
     Gets the observation at a set of coordinates
     """
@@ -488,7 +644,11 @@ def __get_observation_at_geocoords(api:OWM, location:dict) -> Tuple[Observation,
     obs_uv: UVIndex = uvindex_manager.uvindex_around_coords(obs_weather.location.lat,
         obs_weather.location.lon)
 
-    return (obs_weather, obs_uv)
+    aq_manager: AirPollutionManager = api.airpollution_manager()
+    air_quality: AirStatus = aq_manager.air_quality_at_coords(obs_weather.location.lat,
+        obs_weather.location.lon)
+
+    return (obs_weather, obs_uv, air_quality)
 
 def get_owm_location(api:OWM, location:dict) -> Tuple[str, Tuple[int, str, str]]:
     """
@@ -536,8 +696,8 @@ def __get_weather_at_location(api: OWM, location: dict) -> str:
     location['city'] = owm_location[1]
     location['country'] = owm_location[2]
 
-    obs_weather, obs_uv = __get_observation_at_place_id(api, location_by_id)
-    return __get_weather_message_from_observation(api, location, obs_weather, obs_uv)
+    obs_weather, obs_uv, air_status = __get_observation_at_place_id(api, location_by_id)
+    return __get_weather_message_from_observation(api, location, obs_weather, obs_uv, air_status)
 
 def check_owm_locations_list(location: dict,
      owm_locations: List[Tuple[int, str, str]]) -> Tuple[str, Tuple[int, str, str]]:
